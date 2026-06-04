@@ -69,7 +69,35 @@ lazy_static::lazy_static! {
     static ref ONLINE: Mutex<HashMap<String, i64>> = Default::default();
     pub static ref PROD_RENDEZVOUS_SERVER: RwLock<String> = RwLock::new("".to_owned());
     pub static ref EXE_RENDEZVOUS_SERVER: RwLock<String> = Default::default();
-    pub static ref APP_NAME: RwLock<String> = RwLock::new("IDME Remote".to_owned());
+    // IMPORTANT (IDME fork): keep this value as "RustDesk".
+    //
+    // APP_NAME is an *internal identifier*, NOT the user-facing brand name. It is
+    // used as: Windows service name, named-pipe path (\\.\pipe\<APP_NAME>\query),
+    // install directory (C:\Program Files\<APP_NAME>\), main exe filename
+    // (<APP_NAME>.exe), uninstall registry subkey
+    // (HKLM\...\Uninstall\<APP_NAME>), config folder (%APPDATA%\<APP_NAME>),
+    // config file (<APP_NAME>2.toml), URI scheme (<app_name>://), etc.
+    //
+    // The MSI installer (res/msi/preprocess.py) ALWAYS uses --app-name "RustDesk"
+    // (its default), because the WiX `dist/` payload contains rustdesk.exe and
+    // overriding the name breaks the build. The MSI therefore registers the
+    // product under the "RustDesk" identifier across the whole system.
+    //
+    // If APP_NAME differs from what the MSI registered, the running app cannot
+    // detect that it is installed (is_installed() looks for
+    // C:\Program Files\<APP_NAME>\<APP_NAME>.exe, which does not exist), cannot
+    // talk to its own Windows service over the named pipe, reads/writes a
+    // different config file, and the "Install" pink card never goes away.
+    //
+    // The IDME visible branding is applied independently via:
+    //   - Cargo.toml [package.metadata.winres] ProductName / FileDescription
+    //   - flutter/windows/runner/Runner.rc (VERSIONINFO)
+    //   - flutter/windows/runner/main.cpp (Flutter window title)
+    //   - src/lang/es.rs (all user-visible Spanish strings)
+    //   - Cargo.toml [package.metadata.bundle] name (macOS .app)
+    // None of these depend on APP_NAME, so keeping it as "RustDesk" does NOT
+    // leak the upstream name in the UI.
+    pub static ref APP_NAME: RwLock<String> = RwLock::new("RustDesk".to_owned());
     static ref KEY_PAIR: Mutex<Option<KeyPair>> = Default::default();
     static ref USER_DEFAULT_CONFIG: RwLock<(UserDefaultConfig, Instant)> = RwLock::new((UserDefaultConfig::load(), Instant::now()));
     pub static ref NEW_STORED_PEER_CONFIG: Mutex<HashSet<String>> = Default::default();
